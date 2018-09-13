@@ -2,6 +2,7 @@
 using System.Text;
 using System.Runtime.InteropServices;
 using System.Collections.Generic;
+using System.Linq;
 
 
 
@@ -528,6 +529,28 @@ namespace GeoCuda
             {
                 double[] segment_lats = segments_array[l][0];
                 double[] segment_lons = segments_array[l][1];
+
+                double maxlat, minlat, maxlon, minlon;
+
+                maxlat = segment_lats.Max();
+                minlat = segment_lats.Min();
+                maxlon = segment_lons.Max();
+                minlon = segment_lons.Min();
+
+                maxlat += 0.00001 * max_delta;
+                minlat -= 0.00001 * max_delta;
+                maxlon += 0.00003 * max_delta;
+                minlon -= 0.00003 * max_delta;
+
+                if (!(Mlat > minlat &&
+                    Mlat < maxlat &&
+                    Mlon > minlon &&
+                    Mlon < maxlon))
+                {
+                    continue;
+                }
+
+
 
                 int n = segment_lats.Length;
                 //bool segmentclose = false;
