@@ -580,7 +580,7 @@ namespace GeoCuda
 
                     if (disttoline < max_delta)
                     {
-                        segment_list.Add(l);
+                        segment_list.Add(l+1);
                         break;
                     }
                 }
