@@ -506,7 +506,7 @@ namespace GeoCuda
         */
 
         int[] DotCloseToSegments(double Mlat, double Mlon,
-                                double[][][] segments_array, float max_delta)
+                                double[][][] segments_array, float max_delta, List<int> segments_names)
         {
             _PI = 3.14159265358979323846;
             _PI2 = 1.57079632679489661923;
@@ -527,6 +527,7 @@ namespace GeoCuda
 
             for (int l = 0; l<segments_count; l++)
             {
+                int segment_name = segments_names[l];
                 double[] segment_lats = segments_array[l][0];
                 double[] segment_lons = segments_array[l][1];
 
@@ -580,7 +581,7 @@ namespace GeoCuda
 
                     if (disttoline < max_delta)
                     {
-                        segment_list.Add(l+1);
+                        segment_list.Add(segment_name);
                         break;
                     }
                 }
@@ -612,13 +613,16 @@ namespace GeoCuda
             int tek_seg = -1; //текущее имя сегмента, -1 неинициализирован
             int segments_count = 0; //текущее количество сегментов
             int dots_in_segment_count = 0; //количество точек в текущем сегменте
+            List<int> segments_names = new List<int>() { };
+
+
 
             for (int i = 0; i < line_count; i++) //цикл по каждой точке трека (количество элементов линии и сегментов одинаково)
             {
                 //если сменился номер сегмента, то добавим новый сегмент
                 if (segments[i]!=tek_seg)
                 {
-
+                    segments_names.Add(segments[i]);
                     tek_seg = segments[i];
                     segments_list.Add(new List<double>[2]); //добавили новый сегмент в виде массива из 2 списков чисел и список из 4 максмины массива
                     segments_list[segments_count][0] = new List<double>() { };
@@ -657,7 +661,7 @@ namespace GeoCuda
             string segments_array_string;
             for (int i=0; i<dot_count; i++)
             {
-                closesegments = DotCloseToSegments(dot_lat[i], dot_lon[i], segments_array, max_delta); //int[]
+                closesegments = DotCloseToSegments(dot_lat[i], dot_lon[i], segments_array, max_delta, segments_names); //int[]
                 if(closesegments.Length==0)
                 {
                     segments_array_string = "{\"#\",51e7a0d2-530b-11d4-b98a-008048da3034,{0}}";
