@@ -532,7 +532,12 @@ namespace GeoCuda
 
                 double maxlat, minlat, maxlon, minlon;
 
-                maxlat = segment_lats.Max();
+                maxlat = segments_array[l][2][0];
+                minlat = segments_array[l][2][1];
+                maxlon = segments_array[l][2][2];
+                minlon = segments_array[l][2][3];
+
+                /*maxlat = segment_lats.Max();
                 minlat = segment_lats.Min();
                 maxlon = segment_lons.Max();
                 minlon = segment_lons.Min();
@@ -540,12 +545,12 @@ namespace GeoCuda
                 maxlat += 0.00001 * max_delta;
                 minlat -= 0.00001 * max_delta;
                 maxlon += 0.00003 * max_delta;
-                minlon -= 0.00003 * max_delta;
+                minlon -= 0.00003 * max_delta;*/
 
-                if (!(Mlat > minlat &&
-                    Mlat < maxlat &&
-                    Mlon > minlon &&
-                    Mlon < maxlon))
+                if (!(Mlat >= minlat &&
+                    Mlat <= maxlat &&
+                    Mlon >= minlon &&
+                    Mlon <= maxlon))
                 {
                     continue;
                 }
@@ -613,8 +618,9 @@ namespace GeoCuda
                 //если сменился номер сегмента, то добавим новый сегмент
                 if (segments[i]!=tek_seg)
                 {
+
                     tek_seg = segments[i];
-                    segments_list.Add(new List<double>[2]); //добавили новый сегмент в виде массива из 2 списков чисел
+                    segments_list.Add(new List<double>[2]); //добавили новый сегмент в виде массива из 2 списков чисел и список из 4 максмины массива
                     segments_list[segments_count][0] = new List<double>() { };
                     segments_list[segments_count][1] = new List<double>() { };
                     segments_count += 1; //+1 сегмент
@@ -632,11 +638,17 @@ namespace GeoCuda
             segments_array = new double[segments_count][][];
             for (int i = 0; i<segments_count; i++)
             {
-                segments_array[i] = new double[2][];
+                segments_array[i] = new double[3][];
                 segments_array[i][0] = segments_list[i][0].ToArray(); //массив широт
                 segments_array[i][1] = segments_list[i][1].ToArray(); //массив долгот
-            }
+                segments_array[i][2] = new double[4];
 
+
+                segments_array[i][2][0] = segments_array[i][0].Max() + (0.00001 * max_delta * 1.2);
+                segments_array[i][2][1] = segments_array[i][0].Min() - (0.00001 * max_delta * 1.2);
+                segments_array[i][2][2] = segments_array[i][1].Max() + (0.00003 * max_delta * 1.2);
+                segments_array[i][2][3] = segments_array[i][1].Min() - (0.00003 * max_delta * 1.2);
+            }
 
 
             segment_list = new string[dot_count];
