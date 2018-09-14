@@ -3,6 +3,8 @@ using System.Text;
 using System.Runtime.InteropServices;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
 
 
@@ -525,7 +527,65 @@ namespace GeoCuda
             List<int> segment_list = new List<int>() { };
             int segments_count = segments_array.Length;
 
-            for (int l = 0; l<segments_count; l++)
+
+            ParallelOptions parOps = new ParallelOptions();
+            parOps.MaxDegreeOfParallelism = Environment.ProcessorCount;
+
+
+            Parallel.For(0, segments_count, parOps, l =>
+              {
+                  int segment_name = segments_names[l];
+                  double[] segment_lats = segments_array[l][0];
+                  double[] segment_lons = segments_array[l][1];
+
+                  double maxlat, minlat, maxlon, minlon;
+
+                  maxlat = segments_array[l][2][0];
+                  minlat = segments_array[l][2][1];
+                  maxlon = segments_array[l][2][2];
+                  minlon = segments_array[l][2][3];
+
+                  if (!(Mlat >= minlat &&
+                      Mlat <= maxlat &&
+                      Mlon >= minlon &&
+                      Mlon <= maxlon))
+                  {
+                      return;
+                  }
+
+                  int n = segment_lats.Length;
+
+                  for (long i = 0; i <= n - 2; i++)
+                  {
+                    //line dots
+                    double[] a_sph = new double[2] { segment_lats[i], segment_lons[i] };
+                      double[] b_sph = new double[2] { segment_lats[i + 1], segment_lons[i + 1] };
+
+                      if (LineIsTooFar(m_sph, a_sph, b_sph, d_max_delta))
+                      {
+                          continue;
+                      }
+
+                      double[] a_dec = new double[3];
+                      double[] b_dec = new double[3];
+
+                      SpherToCartR(a_sph, a_dec);
+                      SpherToCartR(b_sph, b_dec);
+
+                      disttoline = DistanceToLine(m_dec, a_dec, b_dec, i == n - 2);
+
+                      if (disttoline < max_delta)
+                      {
+                          segment_list.Add(segment_name);
+                          break;
+                      }
+                  }
+
+
+              });
+
+
+            /*for (int l = 0; l<segments_count; l++)
             {
                 int segment_name = segments_names[l];
                 double[] segment_lats = segments_array[l][0];
@@ -538,16 +598,6 @@ namespace GeoCuda
                 maxlon = segments_array[l][2][2];
                 minlon = segments_array[l][2][3];
 
-                /*maxlat = segment_lats.Max();
-                minlat = segment_lats.Min();
-                maxlon = segment_lons.Max();
-                minlon = segment_lons.Min();
-
-                maxlat += 0.00001 * max_delta;
-                minlat -= 0.00001 * max_delta;
-                maxlon += 0.00003 * max_delta;
-                minlon -= 0.00003 * max_delta;*/
-
                 if (!(Mlat >= minlat &&
                     Mlat <= maxlat &&
                     Mlon >= minlon &&
@@ -556,10 +606,8 @@ namespace GeoCuda
                     continue;
                 }
 
-
-
                 int n = segment_lats.Length;
-                //bool segmentclose = false;
+
                 for (long i = 0; i <= n - 2; i++)
                 {
                     //line dots
@@ -585,7 +633,9 @@ namespace GeoCuda
                         break;
                     }
                 }
-            }
+
+
+            }*/
 
             return segment_list.ToArray();
         }
