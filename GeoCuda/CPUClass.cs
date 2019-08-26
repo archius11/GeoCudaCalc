@@ -56,6 +56,8 @@ namespace GeoCuda
         bool IsInside { get; set; }
         bool[] IsInsideArray { get; set; }
 
+        int[,] TrackIsInsideArray { get; set; }
+
         string[] segment_list { get; set; }
 
         double[][] test_return_arrayofarrays { get; set; }
@@ -89,6 +91,7 @@ namespace GeoCuda
 
         public bool IsInside { get; set; }
         public bool[] IsInsideArray { get; set; }
+        public int[,] TrackIsInsideArray { get; set; }
 
         public double[][] test_return_arrayofarrays { get; set; }
 
@@ -872,10 +875,34 @@ namespace GeoCuda
                                             [MarshalAs(UnmanagedType.SafeArray, SafeArraySubType = VarEnum.VT_R8)] double[] PolyLon)  //массив долгота)
         {
             int count = DotLats.Length;
-            IsInsideArray = new bool[count];
-            for (int i=0; i<count; i++)
+
+            if (count == 0) return false;
+
+            List<int[]> Phases = new List<int[]>();
+
+            bool DotInside = false;
+            bool newDotInside;
+
+            for (int i=0; i < count; i++)
             {
-                IsInsideArray[i] = DotInsidePolygon(DotLats[i], DotLons[i], PolyLat, PolyLon);
+                newDotInside = DotInsidePolygon(DotLats[i], DotLons[i], PolyLat, PolyLon);
+
+                if (DotInside != newDotInside)
+                {
+                    int[] newRow = new int[2];
+                    newRow[0] = i; //phase index
+                    newRow[1] = newDotInside ? 1 : 0; //1:in, 0:out
+                    Phases.Add(newRow);
+                }
+
+                DotInside = newDotInside;
+            }
+
+            TrackIsInsideArray = new int[Phases.Count, 2];
+            for (int i=0; i<Phases.Count; i++)
+            {
+                TrackIsInsideArray[i, 0] = Phases[i][0];
+                TrackIsInsideArray[i, 1] = Phases[i][1];
             }
 
             return true;
