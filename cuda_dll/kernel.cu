@@ -10,6 +10,7 @@
 #include "device_launch_parameters.h"
 
 #include <math.h>
+//#include <math_functions.h>
 #include <iostream>
 #include <stdio.h>
 #include <string>
@@ -393,15 +394,78 @@ __device__ int dot_near_polyline(double dot_lat, double dot_lon, double* line_la
 
 }
 
-__global__ void dotarray_near_polyline(double* dot_lat, double* dot_lon, double* line_lat, double* line_lon, long dot_count, long line_count, float max_delta, int* dot_result)
-{
-	int idx = blockIdx.x * blockDim.x + threadIdx.x;
-	if (idx < dot_count)
-	{
-		dot_result[idx] = dot_near_polyline(dot_lat[idx], dot_lon[idx], line_lat, line_lon, line_count, max_delta);
-		//one thread calculate 1 dot near line array
-	}
-}
+//__device__ int* dot_near_polylinesegments(	double dot_lat, double dot_lon,
+//											double* line_lat, double* line_lon, unsigned int line_count,
+//											float max_delta)
+//{
+//	double* m_sph = new double[2];
+//	m_sph[0] = dot_lat;
+//	m_sph[1] = dot_lon;
+//
+//	double* m_dec = new double[3];
+//
+//	SpherToCartR(m_sph, m_dec);
+//
+//	double disttoline;
+//	int dotisclose = 0;
+//
+//	double* a_sph = new double[2];
+//	double* b_sph = new double[2];
+//	double* a_dec = new double[3];
+//	double* b_dec = new double[3];
+//
+//	for (long i = 0; i <= line_count - 2; i++)
+//	{
+//		//line dots
+//		a_sph[0] = line_lat[i];
+//		a_sph[1] = line_lon[i];
+//
+//		b_sph[0] = line_lat[i + 1];
+//		b_sph[1] = line_lon[i + 1];
+//
+//		if (LineIsTooFar(m_sph, a_sph, b_sph, max_delta))
+//		{
+//			continue;
+//		}
+//
+//		SpherToCartR(a_sph, a_dec);
+//		SpherToCartR(b_sph, b_dec);
+//
+//		disttoline = DistanceToLine(m_dec, a_dec, b_dec, i == line_count - 2);
+//
+//		if (disttoline < max_delta)
+//		{
+//			dotisclose = 1;
+//			break;
+//		}
+//	}
+//
+//	delete m_sph;
+//	delete m_dec;
+//	delete a_sph;
+//	delete b_sph;
+//	delete a_dec;
+//	delete b_dec;
+//
+//	return &dotisclose;
+//
+//
+//
+//}
+
+//__global__ void dotarray_near_polyline( double* dot_lat, double* dot_lon, unsigned int dot_count, //координаты трека и количество точек
+//										double* line_lat, double* line_lon, unsigned int line_count, //координаты полилинии
+//										unsigned int* segments, unsigned int segment_count, //массив наименований сегментов и их количество
+//										float max_delta,  //отклонение от маршрута
+//										unsigned int** result_dots, unsigned int* result_counts) //результат расчета массив массивов сегментов для каждой точки и количество сегментов для каждой точки
+//{
+//	int idx = blockIdx.x * blockDim.x + threadIdx.x;
+//	if (idx < dot_count)
+//	{
+//		result_dots[idx] = dot_near_polylinesegments(dot_lat[idx], dot_lon[idx], line_lat, line_lon, line_count, max_delta);
+//		//one thread calculate 1 dot near line array
+//	}
+//}
 
 
 extern "C" __declspec(dllexport)	int GetInvertGeo(double* dot1_lat, double* dot1_lon, double* dot2_lat, double* dot2_lon, double* dist, double* azimut, long count)
@@ -711,115 +775,165 @@ extern "C" __declspec(dllexport)	int CudaInitialize()
     return 0;
 }
 
-extern "C" __declspec(dllexport)	int DotArrayNearPolyline(double* dot_lat, double* dot_lon, double* line_lat, double* line_lon, long dot_count, long line_count, float max_delta, int* dot_result, char str[])
-{
-	const int blockSize = 1024;
-	//int numOfBlocks = (ITEM_COUNT + blockSize - 1) / blockSize;
-	int numOfBlocks = (dot_count - 1) / blockSize + 1;
-	dim3 dimGrid(numOfBlocks);
-	dim3 dimBlock(blockSize);
-	cudaError_t cudaStatus;
-
-	int size_double_dots = sizeof(double) * dot_count;
-	int size_double_polyline = sizeof(double) * line_count;
-	int size_int = sizeof(int) * dot_count;
-
-	double *d_dot_lat;
-	double *d_dot_lon;
-	double *d_line_lat;
-	double *d_line_lon;
-	int *d_dot_result;
-
-	cudaStatus = cudaMalloc((void**)&d_dot_lat, size_double_dots);
-	if (cudaStatus != cudaSuccess)
-	{
-		return 2;
-	}
-	cudaStatus = cudaMalloc((void**)&d_dot_lon, size_double_dots);
-	if (cudaStatus != cudaSuccess)
-	{
-		return 2;
-	}
-	cudaStatus = cudaMalloc((void**)&d_line_lat, size_double_polyline);
-	if (cudaStatus != cudaSuccess)
-	{
-		return 2;
-	}
-	cudaStatus = cudaMalloc((void**)&d_line_lon, size_double_polyline);
-	if (cudaStatus != cudaSuccess)
-	{
-		return 2;
-	}
-	cudaStatus = cudaMalloc((void**)&d_dot_result, size_int);
-	if (cudaStatus != cudaSuccess)
-	{
-		return 2;
-	}
-
-	cudaStatus = cudaMemcpy(d_dot_lat, dot_lat, size_double_dots, cudaMemcpyKind::cudaMemcpyHostToDevice);
-	if (cudaStatus != cudaSuccess)
-	{
-		return 3;
-	}
-	cudaStatus = cudaMemcpy(d_dot_lon, dot_lon, size_double_dots, cudaMemcpyKind::cudaMemcpyHostToDevice);
-	if (cudaStatus != cudaSuccess)
-	{
-		return 3;
-	}
-	cudaStatus = cudaMemcpy(d_line_lat, line_lat, size_double_polyline, cudaMemcpyKind::cudaMemcpyHostToDevice);
-	if (cudaStatus != cudaSuccess)
-	{
-		return 3;
-	}
-	cudaStatus = cudaMemcpy(d_line_lon, line_lon, size_double_polyline, cudaMemcpyKind::cudaMemcpyHostToDevice);
-	if (cudaStatus != cudaSuccess)
-	{
-		return 3;
-	}
-
-
-	dotarray_near_polyline <<< dimGrid, dimBlock >>> (d_dot_lat, d_dot_lon, d_line_lat, d_line_lon, dot_count, line_count, max_delta, d_dot_result);
-	cudaStatus = cudaGetLastError();
-	if (cudaStatus != cudaSuccess) {
-		const char* cudaerr = cudaGetErrorString(cudaStatus);
-		//char source[] = (char[])cudaerr;
-		int Size;
-		while (cudaerr[Size] != '\0') Size++;
-		sprintf_s(str, Size, cudaerr);
-		return 4;
-	}
-
-	cudaStatus = cudaMemcpy(dot_result, d_dot_result, size_int, cudaMemcpyKind::cudaMemcpyDeviceToHost);
-	if (cudaStatus != cudaSuccess)
-	{
-		return 3;
-	}
-
-	cudaStatus = cudaFree(d_dot_lat);
-	if (cudaStatus != cudaSuccess)
-	{
-		return 5;
-	}
-	cudaStatus = cudaFree(d_dot_lon);
-	if (cudaStatus != cudaSuccess)
-	{
-		return 5;
-	}	
-	cudaStatus = cudaFree(d_line_lat);
-	if (cudaStatus != cudaSuccess)
-	{
-		return 5;
-	}	
-	cudaStatus = cudaFree(d_line_lon);
-	if (cudaStatus != cudaSuccess)
-	{
-		return 5;
-	}	
-	cudaStatus = cudaFree(d_dot_result);
-	if (cudaStatus != cudaSuccess)
-	{
-		return 5;
-	}
-
-	return 0;
-}
+//extern "C" __declspec(dllexport)	int DotArrayNearPolyline(	double* dot_lat, double* dot_lon, unsigned int dot_count, //координаты трека и количество точек
+//																double* line_lat, double* line_lon, unsigned int line_count, //координаты полилинии
+//																unsigned int* segments, unsigned int segment_count,  //массив наименований сегментов и их количество
+//																float max_delta, //отклонение от маршрута
+//																unsigned int* dot_result, unsigned int* result_counts, //вложенные массивы упакованные в 1 массив, массив с количеством элементов в каждом подмассиве
+//																char str[]) //строка ошибки
+//{
+//
+//	const int blockSize = 1024;
+//	//int numOfBlocks = (ITEM_COUNT + blockSize - 1) / blockSize;
+//	int numOfBlocks = (dot_count - 1) / blockSize + 1;
+//	dim3 dimGrid(numOfBlocks);
+//	dim3 dimBlock(blockSize);
+//	cudaError_t cudaStatus;
+//
+//	int size_double_dots = sizeof(double) * dot_count;
+//	int size_double_polyline = sizeof(double) * line_count;
+//	int size_int_segments = sizeof(unsigned int) * segment_count;
+//	//int size_int_segments = sizeof(unsigned int) * dot_count;
+//
+//	double *d_dot_lat;
+//	double *d_dot_lon;
+//	double *d_line_lat;
+//	double *d_line_lon;
+//	unsigned int *d_segments;
+//	unsigned int **d_result_dots; //вложенные массивы на стороне девайса
+//	unsigned int *d_result_counts; //массив количества элементов во вложенных массивах
+//
+//
+//
+//	cudaStatus = cudaMalloc((void**)&d_dot_lat, size_double_dots);
+//	if (cudaStatus != cudaSuccess)
+//	{
+//		return 2;
+//	}
+//	cudaStatus = cudaMalloc((void**)&d_dot_lon, size_double_dots);
+//	if (cudaStatus != cudaSuccess)
+//	{
+//		return 2;
+//	}
+//	cudaStatus = cudaMalloc((void**)&d_line_lat, size_double_polyline);
+//	if (cudaStatus != cudaSuccess)
+//	{
+//		return 2;
+//	}
+//	cudaStatus = cudaMalloc((void**)&d_line_lon, size_double_polyline);
+//	if (cudaStatus != cudaSuccess)
+//	{
+//		return 2;
+//	}
+//	cudaStatus = cudaMalloc((void**)&d_segments, size_int_segments);
+//	if (cudaStatus != cudaSuccess)
+//	{
+//		return 2;
+//	}
+//
+//
+//	cudaStatus = cudaMemcpy(d_dot_lat, dot_lat, size_double_dots, cudaMemcpyKind::cudaMemcpyHostToDevice);
+//	if (cudaStatus != cudaSuccess)
+//	{
+//		return 3;
+//	}
+//	cudaStatus = cudaMemcpy(d_dot_lon, dot_lon, size_double_dots, cudaMemcpyKind::cudaMemcpyHostToDevice);
+//	if (cudaStatus != cudaSuccess)
+//	{
+//		return 3;
+//	}
+//	cudaStatus = cudaMemcpy(d_line_lat, line_lat, size_double_polyline, cudaMemcpyKind::cudaMemcpyHostToDevice);
+//	if (cudaStatus != cudaSuccess)
+//	{
+//		return 3;
+//	}
+//	cudaStatus = cudaMemcpy(d_line_lon, line_lon, size_double_polyline, cudaMemcpyKind::cudaMemcpyHostToDevice);
+//	if (cudaStatus != cudaSuccess)
+//	{
+//		return 3;
+//	}
+//	cudaStatus = cudaMemcpy(d_segments, segments, size_int_segments, cudaMemcpyKind::cudaMemcpyHostToDevice);
+//	if (cudaStatus != cudaSuccess)
+//	{
+//		return 3;
+//	}
+//
+//
+//	dotarray_near_polyline <<< dimGrid, dimBlock >>> (  d_dot_lat, d_dot_lon, dot_count,
+//														d_line_lat, d_line_lon, line_count, 
+//														d_segments, segment_count,
+//														max_delta, 
+//														d_result_dots, d_result_counts);
+//	cudaStatus = cudaGetLastError();
+//	if (cudaStatus != cudaSuccess) {
+//		const char* cudaerr = cudaGetErrorString(cudaStatus);
+//		//char source[] = (char[])cudaerr;
+//		int Size;
+//		while (cudaerr[Size] != '\0') Size++;
+//		sprintf_s(str, Size, cudaerr);
+//		return 4;
+//	}
+//
+//
+//
+//	//скопируем с устройства массив количества элементов во вложенных массивах
+//	cudaStatus = cudaMemcpy(result_counts, d_result_counts, sizeof(unsigned int) * dot_count, cudaMemcpyKind::cudaMemcpyDeviceToHost);
+//	if (cudaStatus != cudaSuccess)
+//	{
+//		return 3;
+//	}
+//
+//	unsigned int segment_sum = 0; //общее количество элементов во вложенных массивах
+//	for (unsigned int i = 0; i < dot_count; i++)
+//		segment_sum += result_counts[i];
+//
+//	unsigned int** d_result_dots_host; //вложенные массивы на стороне хоста
+//	d_result_dots_host = new unsigned int*[segment_sum]; //память под вложенные масивы
+//
+//	cudaStatus = cudaMemcpy(d_result_dots_host, d_result_dots, sizeof(unsigned int) * segment_sum, cudaMemcpyKind::cudaMemcpyDeviceToHost);
+//	if (cudaStatus != cudaSuccess)
+//	{
+//		return 3;
+//	}
+//
+//	unsigned int ind = 0;
+//	dot_result = new unsigned int[segment_sum]; //память под линейный массив
+//	//скопируем вложенные массива в упакованный одномерный
+//	for (unsigned int i = 0; i < dot_count; i++)
+//	{
+//		//для каждого вложенного массива
+//		for (unsigned int l = 0; l < result_counts[i]; l++)
+//		{
+//			dot_result[ind] = d_result_dots_host[i][l];
+//			ind++;
+//		}
+//	}
+//
+//	cudaStatus = cudaFree(d_dot_lat);
+//	if (cudaStatus != cudaSuccess)
+//	{
+//		return 5;
+//	}
+//	cudaStatus = cudaFree(d_dot_lon);
+//	if (cudaStatus != cudaSuccess)
+//	{
+//		return 5;
+//	}	
+//	cudaStatus = cudaFree(d_line_lat);
+//	if (cudaStatus != cudaSuccess)
+//	{
+//		return 5;
+//	}	
+//	cudaStatus = cudaFree(d_line_lon);
+//	if (cudaStatus != cudaSuccess)
+//	{
+//		return 5;
+//	}	
+//	cudaStatus = cudaFree(d_segments);
+//	if (cudaStatus != cudaSuccess)
+//	{
+//		return 5;
+//	}
+//
+//	return 0;
+//}
